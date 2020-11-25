@@ -1,100 +1,167 @@
-import java.io.BufferedReader;
-import java.io.IOException;
+import java.io.*;
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 public class ClientHandler implements Runnable {
+	private DatagramSocket ds;
 
-    // String directories to files where clients and subjects are stored
-    private final String clients = null;
-    private final String subjects = null;
+	static HashMap<String, ArrayList<String>> storage = new HashMap<String, ArrayList<String>>();
+	RSS clientR;
+	byte[] receive = new byte[65535];
+	DatagramPacket DpReceive = null;
+	InetAddress ip = InetAddress.getLocalHost();
+	//InetAddress ip = InetAddress.getByName("8.8.8.8");
 
-    private BufferedReader clientsReader;
-    private BufferedReader subjectsReader;
+	public ClientHandler(DatagramSocket clientSocket) throws IOException {
+        this.ds = clientSocket;
+		//clientR.getRequest();
+    } // end of ClientHandler
 
-    private DatagramSocket ds;
-
-    String requestType;
-/*
-    public ClientHandler(Socket socket, String request) {
-        ds = socket;
-        clientsReader = new BufferedReader(new FileReader(clients));
-        subjectsReader = new BufferedReader(new FileReader(subjects));
-        requestType = request;
-        // read data from files
-        clientsReader.readLine();
-        subjectsReader.readLine();
-    }*/
-RSS clientR;
+	@Override
     public void run() {
-        System.out.println("Server Listening to Client: " + ds.getInetAddress().toString() + ":" + ds.getPort());
+		try {
+			while (true) {
+				DpReceive = new DatagramPacket(receive, receive.length);
 
-        while (ds.isConnected()) {
-            sendResponseForRequest(requestType);
-        } // end of while loop
-    } // end of run
+				ds.receive(DpReceive);
 
-    // returns response depending on client's request
-    private void sendResponseForRequest(String requestType) {
-        String request = requestType;
+				ObjectInputStream iStream = new ObjectInputStream(new ByteArrayInputStream(receive));
 
-        // check if user already exists
-        if (request.equals("REGISTER")) { //all the 10 in the for loops are incorrect. needs to be changed
-        	for (int i = 0; i < 10; i++) { //loop through previous registered names
-        		if (clientR.gettClienName() != clientsReader.readLine()) {
-        			System.out.println("Registration accepted");
-        			clientR.setClientStatus("REGISTERED");
-        		} else {
-        			System.out.println("Registration denied: Invalid username");
-        			clientR.setClientStatus("REGISTER-DENIED");
-        			//add time penalty before user can retry
-        		}
-        	}
-        }
-        if (request.equals("DE-REGISTER")) {
-        	for (int i = 0; i < 10; i++) { //loop through previous registered names
-            	if (clientR.gettClienName() == clientsReader.readLine()) {
-    				System.out.println("Deregistration accepted");
-    				clientR.setClientStatus("DE-REGISTER");
-            	} else {} //if no name is matched, then request is ignored
-        	}
-        }
-        if (request.equals("UPDATE") {
-        	for (int i = 0; i < 10; i++) { //loop through previous registered names
-        		if (clientR.gettClienName() == clientsReader.readLine()) {
-        			System.out.println("Update confirmed");
-        			clientR.setClientStatus("UPDATE-CONFIRMED");
-        		} else {
-        			System.out.println("Update denied: Name does not exist");
-        			clientR.setClientStatus("UPDATE-DENIED");
-        		}
-        	}
-        }
-        if (request.equals("SUBJECTS") {
-        	for (int i = 0; i < 10; i++) { //loop through previous registered names
-        		if (clientR.gettClienName() == clientsReader.readLine()) {
-        			System.out.println("Subjects updated");
-        			clientR.setClientStatus("SUBJECTS-UPDATED");
-        		} else {
-        			System.out.println("Subjects rejected: Name or Subject does not exist");
-        			clientR.setClientStatus("SUBJECTS-REJECTED");
-        		}
-        	}
-        }
-        if (request.equals("PUBLISH") {
-        	for (int i = 0; i < 10; i++) { //loop through previous registered names
-        		if (clientR.gettClienName() == clientsReader.readLine()) {
-        			System.out.println("Message");
-        			clientR.setClientStatus("MESSAGE");
-        		} else if {
+				try {
+					clientR = (RSS) iStream.readObject();
+				}
+				catch (ClassNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				iStream.close();
+
+
+				// print which client the server thread is listening to
+				//System.out.println("\nServer Listening to Client: " + clientR.getClientSimulationIp() + ":" + clientR.gettClientSocket());
+
+				System.out.println("\nClient Name: " + clientR.gettClienName());
+				System.out.println("Client Request: " + clientR.getRequest());
+				System.out.println("Order #: " + clientR.getOrderNumber());
+				System.out.println("Client IP: " + clientR.getClientSimulationIp());
+				System.out.println("Client Socket Number: " + clientR.gettClientSocket());
+				String Key;
+				String data;
+				Key = clientR.gettClienName();
+				data = clientR.getRequest() + " " + clientR.getOrderNumber() + " " + clientR.getClientSimulationIp() + " " + clientR.gettClientSocket();
+				ArrayList<String> b = new ArrayList<String>();
+				if (clientR.getRequest().equals("REGISTER")) {
+					// TODO create condition to check registration success
+					if (storage.containsKey(Key) == false) {
+
+						System.out.println("A Register request is made by " + clientR.gettClienName());
+						// save data
+						b.add(data);
+						storage.put(Key, b); // add to hashmap
+						b = null; // to be used to point to other places in hashmap arrayList
+						// send back confirmation
+						System.out.println("Registration accepted");
+						clientR.setClientStatus("REGISTERED");
+						System.out.println(" ");
+						System.out.println("*****************************************************");
+						System.out.println("   STORAGE CONTENT   ");
+						System.out.println(storage);
+						ByteArrayOutputStream bStream = new ByteArrayOutputStream();
+						sendUDP(bStream, clientR, ds, ip);
+					} else if (storage.containsKey(Key) == true) {
+						//System.out.println( " status currently " + clientR.getClientStatus());
+						clientR.setClientStatus("REGISTER-DENIED");
+						clientR.setReason("User Already Registered");
+						System.out.println("REGISTER-DENIED");
+						ByteArrayOutputStream bStream = new ByteArrayOutputStream();
+						sendUDP(bStream, clientR, ds, ip);
+					}
+				} else if (clientR.getRequest().equals("DE-REGISTER")) {
+					if (storage.containsKey(Key) == true) { //if user data exists
+						storage.remove(Key); //delete from hashmap
+						clientR.setClientStatus("DE-REGISTERED"); //set status as de-register
+						System.out.println("De-Registration accepted");
+						System.out.println("   STORAGE CONTENT   ");
+						System.out.println(storage);
+						ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+						sendUDP(bStream, clientR, ds, ip);
+					} else {
+						// nothing happens just send back the class info
+						clientR.setClientStatus(null);
+						System.out.println("De-Registration rejected, User was not registered at this moment");
+						ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+						sendUDP(bStream, clientR, ds, ip);
+					}
+				} else if (clientR.getRequest().equals("UPDATE")) {
+					if (storage.containsKey(Key) == true) {
+						storage.get(Key);
+						b.add(data);
+						storage.put(Key, b); // add to hashmap
+						b = null; // to be used to point to other places in hashmap arrayList
+						System.out.println(storage);
+						System.out.println("Update done ");
+						clientR.setClientStatus("UPDATE-CONFIRMED"); //set status as de-register
+						System.out.println("   STORAGE CONTENT   ");
+						System.out.println(storage);
+						ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+						sendUDP(bStream, clientR, ds, ip);
+					} else {
+						System.out.println("Update denied: Name does not exist");
+						clientR.setClientStatus("UPDATE-DENIED");
+					}
+				} /*else if (clientR.equals("SUBJECTS")) {
+					for (int i = 0; i < 10; i++) { //loop through previous registered names
+						if (clientR.gettClienName() == clientsReader.readLine()) {
+							System.out.println("Subjects updated");
+							clientR.setClientStatus("SUBJECTS-UPDATED");
+						} else {
+							System.out.println("Subjects rejected: Name or Subject does not exist");
+							clientR.setClientStatus("SUBJECTS-REJECTED");
+						}
+					}
+				} else if (clientR.equals("PUBLISH")) {
+					for (int i = 0; i < 10; i++) { //loop through previous registered names
+						if (clientR.gettClienName() == clientsReader.readLine()) {
+							System.out.println("Message");
+							clientR.setClientStatus("MESSAGE");
+						} else if {
         			System.out.println("Publish denied: Name/Subject does not exist");
         			clientR.setClientStatus("PUBLISH-DENIED");
         		} else {
         			System.out.println("Publish denied: Subject is not in the user's interests");
         			clientR.setClientStatus("PUBLISH-DENIED");
         		}
-        	}
-        }
-    }
+					}
+				} */else if (clientR.toString().equals("EXIT")) {
+					System.out.println("Client sent exit... exiting");
+					break;
+				}
+			}
+		} catch	(IOException e) {
+			System.err.println("IO exception in Client Handler");
+			System.err.println(e.getStackTrace());
+		}
+    } // end of run
 
-
+	public static void sendUDP(ByteArrayOutputStream b, RSS s, DatagramSocket ds, InetAddress ip) {
+		try
+		{
+			ObjectOutput oo = new ObjectOutputStream(b);
+			oo.writeObject(s);
+			oo.close();
+			byte[] serializedMessage = b.toByteArray();
+			System.out.println("Sending BACK : " + s.gettClientSocket());
+			DatagramPacket dpSend = new DatagramPacket(serializedMessage, serializedMessage.length,ip,s.gettClientSocket());
+			ds.send(dpSend);
+		}
+		catch (IOException ex)
+		{ex.printStackTrace(); }
+	} // end of sendUDP
 } // end of class ClientHandler
