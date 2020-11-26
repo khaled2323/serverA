@@ -35,6 +35,7 @@ public class serverA {
 		InetAddress ip = InetAddress.getLocalHost();
 		Object inputObject;
 		int serverBSocket = 3051;
+		String key;
 		//InetAddress ip = InetAddress.getByName("8.8.8.8");
 		boolean serverRunning = true;
 
@@ -50,7 +51,7 @@ public class serverA {
 			timer.schedule(serverTimer, 0);
 
 			// timer ends
-			//randomTime = r.nextInt(20000); //7 mins = 420000 ms
+			//randomTime = r.nextInt(420000); //7 mins = 420000 ms
 			Thread.sleep(20000); // in milliseconds
 			System.out.println("\nServer stopped serving at: " + new Date());
 			String status = "This server is no longer serving, the other server must take over.\n";
@@ -107,7 +108,14 @@ public class serverA {
 				inputObject = iStream.readObject();
 				if (inputObject instanceof HashMap) {
 					System.out.println("Storage from Server B:\n" + inputObject); // used for testing
-					storage = (HashMap) inputObject;
+
+					// TESTING - add contents from Server A's storage to Server B's storage
+					for (Map.Entry<String, ArrayList<String>> clientInfo : ((HashMap<String, ArrayList<String>>) inputObject).entrySet()) {
+						key = clientInfo.getKey();
+						ArrayList<String> currentListData = clientInfo.getValue();
+						storage.put(key, currentListData);
+						System.out.println("TEST - storage from Server A: " + storage);
+					}
 					break;
 				}
 			} // end of while loop
