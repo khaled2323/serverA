@@ -8,8 +8,10 @@ import java.util.HashMap;
 
 public class ClientHandler implements Runnable {
 	private DatagramSocket ds;
-
+	private BufferedReader in;
+	private PrintWriter out;
 	static HashMap<String, ArrayList<String>> storage = new HashMap<String, ArrayList<String>>();
+
 	RSS clientR;
 	byte[] receive = new byte[65535];
 	DatagramPacket DpReceive = null;
@@ -18,7 +20,6 @@ public class ClientHandler implements Runnable {
 
 	public ClientHandler(DatagramSocket clientSocket) throws IOException {
         this.ds = clientSocket;
-		//clientR.getRequest();
     } // end of ClientHandler
 
 	@Override
@@ -33,21 +34,20 @@ public class ClientHandler implements Runnable {
 
 				try {
 					clientR = (RSS) iStream.readObject();
-				}
-				catch (ClassNotFoundException e) {
+
+				} catch (ClassNotFoundException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				iStream.close();
-
 
 				// print which client the server thread is listening to
-				//System.out.println("\nServer Listening to Client: " + clientR.getClientSimulationIp() + ":" + clientR.gettClientSocket());
+				System.out.println("\nServer Listening to Client: " + clientR.getClientSimulationIp() + ":" + clientR.gettClientSocket());
 
-				System.out.println("\nClient Name: " + clientR.gettClienName());
+				iStream.close();
+				System.out.println("Client Name: " + clientR.gettClienName());
 				System.out.println("Client Request: " + clientR.getRequest());
 				System.out.println("Order #: " + clientR.getOrderNumber());
 				System.out.println("Client IP: " + clientR.getClientSimulationIp());

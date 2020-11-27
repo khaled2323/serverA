@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 
 public class serverA {
 	static HashMap<String, ArrayList<String>> storage = new HashMap<String, ArrayList<String>>();
+	boolean isServing = true;
 
 	public static StringBuilder data(byte[] a) {
 		// TODO Auto-generated method stub
@@ -71,7 +72,7 @@ public class serverA {
 			// send Server B's socket and ip to all the clients
 			RSS serverB = new RSS(serverBSocket);
 			serverB.setClientStatus("CHANGE-SERVER");
-
+			
 			bStream = new ByteArrayOutputStream();
 			objectOutput = new ObjectOutputStream(bStream);
 			objectOutput.writeObject(serverB);
@@ -93,6 +94,7 @@ public class serverA {
 					clientIP = splitInfo[2];
 					clientSocket = splitInfo[3];
 				}
+				System.out.println(   " Change-server  in serverA " + clientSocket);
 				dpSend = new DatagramPacket(serializedMessage, serializedMessage.length, ip, Integer.parseInt(clientSocket));
 				ds.send(dpSend);
 			}
@@ -114,7 +116,7 @@ public class serverA {
 						key = clientInfo.getKey();
 						ArrayList<String> currentListData = clientInfo.getValue();
 						storage.put(key, currentListData);
-						System.out.println("TEST - storage from Server A: " + storage);
+						System.out.println("TEST - storage from Server B: " + storage);
 					}
 					break;
 				}
