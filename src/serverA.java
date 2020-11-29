@@ -12,7 +12,9 @@ import java.util.concurrent.Executors;
 
 public class serverA {
 	static HashMap<String, ArrayList<String>> storage = new HashMap<String, ArrayList<String>>();
-	boolean isServing = true;
+	private static boolean isServing = true;
+	private static int serverSocket = 3050;
+	private static int serverBSocket = 3051;
 
 	public static StringBuilder data(byte[] a) {
 		// TODO Auto-generated method stub
@@ -29,23 +31,22 @@ public class serverA {
 	}
 	
 	public static void main(String [] args) throws IOException, InterruptedException, ClassNotFoundException {
-		int serverSocket = 3050;
 		DatagramSocket ds = new DatagramSocket(serverSocket);
+		ByteArrayOutputStream bStream;
+		ObjectOutput objectOutput;
 		byte[] receive = new byte[65535];
 		DatagramPacket DpReceive = null;
 		InetAddress ip = InetAddress.getLocalHost();
 		Object inputObject;
-		int serverBSocket = 3051;
 		String key;
 		//InetAddress ip = InetAddress.getByName("8.8.8.8");
-		boolean serverRunning = true;
 
-		ClientHandler clientHandler = new ClientHandler(ds);
+		//ClientHandler clientHandler = new ClientHandler(ds);
 
 		while (true) {
 			System.out.println("[SERVER] Waiting for a client connection...");
 
-			ServerTimer serverTimer = new ServerTimer(ds);
+			ServerTimer serverTimer = new ServerTimer(ds, serverBSocket);
 			Timer timer = new Timer();
 			// timer starts
 			System.out.println("Server started serving at: " + new Date());
@@ -53,26 +54,26 @@ public class serverA {
 
 			// timer ends
 			//randomTime = r.nextInt(420000); //7 mins = 420000 ms
-			Thread.sleep(20000); // in milliseconds
+			Thread.sleep(15000); // in milliseconds
 			System.out.println("\nServer stopped serving at: " + new Date());
+			isServing = false;
 			String status = "This server is no longer serving, the other server must take over.\n";
-			System.out.println(status + "   Storage Content:   \n" + clientHandler.storage);
+			System.out.println(status + "   Storage Content:   \n" + ClientHandler.storage);
 
-			// sends Server A's storage to Server B
-			ByteArrayOutputStream bStream = new ByteArrayOutputStream();
-			ObjectOutput objectOutput = new ObjectOutputStream(bStream);
-			objectOutput.writeObject(clientHandler.storage);
+			// tell Server B to take over
+			RSS serverB = new RSS(serverBSocket);
+			serverB.setClientStatus("CHANGE-SERVER");
+
+			bStream = new ByteArrayOutputStream();
+			objectOutput = new ObjectOutputStream(bStream);
+			objectOutput.writeObject(serverB);
 			objectOutput.close();
 
 			byte[] serializedMessage = bStream.toByteArray();
-
 			DatagramPacket dpSend = new DatagramPacket(serializedMessage, serializedMessage.length, ip, serverBSocket);
 			ds.send(dpSend);
 
 			// send Server B's socket and ip to all the clients
-			RSS serverB = new RSS(serverBSocket);
-			serverB.setClientStatus("CHANGE-SERVER");
-			
 			bStream = new ByteArrayOutputStream();
 			objectOutput = new ObjectOutputStream(bStream);
 			objectOutput.writeObject(serverB);
@@ -84,7 +85,8 @@ public class serverA {
 			String clientSocket = null;
 			String clientIP = null;
 
-			for (Map.Entry<String, ArrayList<String>> clientInfo : clientHandler.storage.entrySet()) {
+			// iterates through storage to get all the clients' ip and sockets
+			for (Map.Entry<String, ArrayList<String>> clientInfo : ClientHandler.storage.entrySet()) {
 				ArrayList<String> currentList = clientInfo.getValue();
 
 				// iterate on the current list
@@ -94,59 +96,49 @@ public class serverA {
 					clientIP = splitInfo[2];
 					clientSocket = splitInfo[3];
 				}
-				System.out.println(   " Change-server  in serverA " + clientSocket);
 				dpSend = new DatagramPacket(serializedMessage, serializedMessage.length, ip, Integer.parseInt(clientSocket));
 				ds.send(dpSend);
 			}
 
-			// waiting for Server B to stop serving, and to receive Server B's storage
-			while (true) {
-				DpReceive = new DatagramPacket(receive, receive.length);
-
-				ds.receive(DpReceive);
-
-				ObjectInputStream iStream = new ObjectInputStream(new ByteArrayInputStream(receive));
-
-				inputObject = iStream.readObject();
-				if (inputObject instanceof HashMap) {
-					System.out.println("Storage from Server B:\n" + inputObject); // used for testing
-
-					// TESTING - add contents from Server A's storage to Server B's storage
-					for (Map.Entry<String, ArrayList<String>> clientInfo : ((HashMap<String, ArrayList<String>>) inputObject).entrySet()) {
-						key = clientInfo.getKey();
-						ArrayList<String> currentListData = clientInfo.getValue();
-						storage.put(key, currentListData);
-						System.out.println("TEST - storage from Server B: " + storage);
-					}
-					break;
-				}
-			} // end of while loop
-		}
+			// waiting for Server B to stop serving, then receives Server B's storage
+			while (!isServing) {
+				ClientHandler clientHandler = new ClientHandler(ds, serverBSocket);
+				clientHandler.run();
+				isServing = clientHandler.getIsServing();
+			} // end of inner while loop
+		} // end of outer while loop
 	} // end of main
 } // end of class ServerA
 
 class ServerTimer extends TimerTask {
 	DatagramSocket datagramSocket = null;
+	int serverBSocket;
 	private static ArrayList<ClientHandler> clients = new ArrayList<>();
 	private static ExecutorService pool = Executors.newFixedThreadPool(4); // can increase this # depending on # of clients
+	private volatile boolean exit = false;
 
-	public ServerTimer(DatagramSocket ds) {
+	public ServerTimer(DatagramSocket ds, int serverBSocket) {
 		this.datagramSocket = ds;
+		this.serverBSocket = serverBSocket;
 	}
 
 	@Override
 	public void run() {
 		// create ClientHandler threads to handle each client
-		//while (true) {
+		//while (!exit) {
 		ClientHandler clientThread = null;
 		try {
-			clientThread = new ClientHandler(datagramSocket);
+			clientThread = new ClientHandler(datagramSocket, serverBSocket);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		clients.add(clientThread);
 		pool.execute(clientThread);
-		//} // end of while loop
-		}
+			//} // end of while loop
+		} // end of run
+
+	public void stop() {
+		exit = true;
+	}
 } // end of class serverTimer
 
