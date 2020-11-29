@@ -54,7 +54,7 @@ public class serverA {
 
 			// timer ends
 			//randomTime = r.nextInt(420000); //7 mins = 420000 ms
-			Thread.sleep(15000); // in milliseconds
+			Thread.sleep(90000); // in milliseconds
 			System.out.println("\nServer stopped serving at: " + new Date());
 			isServing = false;
 			String status = "This server is no longer serving, the other server must take over.\n";
