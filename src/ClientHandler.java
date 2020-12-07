@@ -179,61 +179,62 @@ public class ClientHandler implements Runnable {
 						clientR.setClientStatus("UPDATE-DENIED");
 					}
 				} else if(clientR.getRequest().equals("SUBJECTS")) {
+					for (int i = 0; i < possibleSubjects.length; i++) {
+						if (possibleSubjects[i] == clientR.getsubject()) {
+							if (storage.containsKey(Key) == true) {
+								if (storageSubjects.containsKey(Key) == false) {
+									// add key and content of arrayLis
+									storageSubjects.put(Key, clientR.getSubjects());
+									System.out.println("Subjects recieved by: "+ Key);
+									clientR.setClientStatus("SUBJECT-UPDATED"); //set status as de-register
+									System.out.println(storageSubjects);
 
-					if (storage.containsKey(Key) == true) {
-						if (storageSubjects.containsKey(Key) == false) {
-							// add key and content of arrayLis
-							storageSubjects.put(Key, clientR.getSubjects());
-							System.out.println("Subjects recieved by: "+ Key);
-							clientR.setClientStatus("SUBJECT-UPDATED"); //set status as de-register
-							System.out.println(storageSubjects);
+									// sends to other server
+									if (clientR.from().equals("CLIENT")) {
+										clientR.setFrom("SERVER");
+										clientR.setServerSocket(serverBSocket);
+										ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+										ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
+										sendUDP(bStream, clientR, ds, ip);
+										sendUDPToServer(bStream2, clientR, ds, ip);
+										clientR.setSubjects(null);
+									}
+								} else {
+									// NAME ALREADY EXISTS
+									storageSubjects.put(Key, clientR.getSubjects());
+									System.out.println("Subjects recieved by :"+ Key);
+									clientR.setClientStatus("SUBJECT-UPDATED"); //set status as de-register
+									System.out.println(storageSubjects);
+									
+									// sends to other server
+									if (clientR.from().equals("CLIENT")) {
+										clientR.setFrom("SERVER");
+										clientR.setServerSocket(serverBSocket);
+										ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+										ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
+										sendUDP(bStream, clientR, ds, ip);
+										sendUDPToServer(bStream2, clientR, ds, ip);
+										clientR.setSubjects(null);
+									}
+								}
+							} else {
+								String reason = "Subjects adding denied: Name does not exist";
+								System.out.println(reason);
+								clientR.setClientStatus("SUBJECTS-REJECTED");
+								clientR.setReason(reason);
 
-							// sends to other server
-							if (clientR.from().equals("CLIENT")) {
-								clientR.setFrom("SERVER");
-								clientR.setServerSocket(serverBSocket);
-								ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
-								ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
-								sendUDP(bStream, clientR, ds, ip);
-								sendUDPToServer(bStream2, clientR, ds, ip);
-								clientR.setSubjects(null);
+								// sends to other server
+								if (clientR.from().equals("CLIENT")) {
+									clientR.setFrom("SERVER");
+									clientR.setServerSocket(serverBSocket);
+									ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+									ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
+									sendUDP(bStream, clientR, ds, ip);
+									sendUDPToServer(bStream2, clientR, ds, ip);
+								}
 							}
-
-						} else {
-							// NAME ALREADY EXISTS
-							storageSubjects.put(Key, clientR.getSubjects());
-							System.out.println("Subjects recieved by :"+ Key);
-							clientR.setClientStatus("SUBJECT-UPDATED"); //set status as de-register
-							System.out.println(storageSubjects);
-
-							// sends to other server
-							if (clientR.from().equals("CLIENT")) {
-								clientR.setFrom("SERVER");
-								clientR.setServerSocket(serverBSocket);
-								ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
-								ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
-								sendUDP(bStream, clientR, ds, ip);
-								sendUDPToServer(bStream2, clientR, ds, ip);
-								clientR.setSubjects(null);
-							}
-						}
-					} else {
-						String reason = "Subjects adding denied: Name does not exist";
-						System.out.println(reason);
-						clientR.setClientStatus("SUBJECTS-REJECTED");
-						clientR.setReason(reason);
-
-						// sends to other server
-						if (clientR.from().equals("CLIENT")) {
-							clientR.setFrom("SERVER");
-							clientR.setServerSocket(serverBSocket);
-							ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
-							ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
-							sendUDP(bStream, clientR, ds, ip);
-							sendUDPToServer(bStream2, clientR, ds, ip);
-						}
+						} 
 					}
-
 				} else if(clientR.getRequest().equals("PUBLISH")) {
 					if (storage.containsKey(Key) == true) {
 						// user is already registered
@@ -291,12 +292,56 @@ public class ClientHandler implements Runnable {
 											client.setFrom("SERVER");
 											sendUDPToServer(bStream2, client, ds, ip);
 										//sendUDP
+									} else {
+										String reason = "Publishing denied: User not registered to subject";
+										System.out.println(reason);
+										clientR.setClientStatus("PUBLISH-DENIED");
+										clientR.setReason(reason);
+
+										// sends to other server
+										if (clientR.from().equals("CLIENT")) {
+											clientR.setFrom("SERVER");
+											clientR.setServerSocket(serverBSocket);
+											ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+											ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
+											sendUDP(bStream, clientR, ds, ip);
+											sendUDPToServer(bStream2, clientR, ds, ip);
+										}	
 									}
 								} // end of inner for loop
 							} // end of outter for loop
-						} // end of if statement
-					}
+						} else {
+							String reason = "Publishing denied: Subject does not exist";
+							System.out.println(reason);
+							clientR.setClientStatus("PUBLISH-DENIED");
+							clientR.setReason(reason);
 
+							// sends to other server
+							if (clientR.from().equals("CLIENT")) {
+								clientR.setFrom("SERVER");
+								clientR.setServerSocket(serverBSocket);
+								ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+								ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
+								sendUDP(bStream, clientR, ds, ip);
+								sendUDPToServer(bStream2, clientR, ds, ip);
+							}	
+						} // end of if statement
+					} else {
+						String reason = "Publishing denied: Name does not exist";
+						System.out.println(reason);
+						clientR.setClientStatus("PUBLISH-DENIED");
+						clientR.setReason(reason);
+
+						// sends to other server
+						if (clientR.from().equals("CLIENT")) {
+							clientR.setFrom("SERVER");
+							clientR.setServerSocket(serverBSocket);
+							ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+							ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
+							sendUDP(bStream, clientR, ds, ip);
+							sendUDPToServer(bStream2, clientR, ds, ip);
+						}
+					}
 				} else if (clientR.toString().equals("EXIT")) {
 					System.out.println("Client sent exit... exiting");
 					break;
