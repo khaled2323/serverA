@@ -9,6 +9,7 @@ import java.util.Map;
 
 public class ClientHandler implements Runnable {
 	private DatagramSocket ds;
+	private int serverSocket = 3050;
 	private int serverBSocket = 3051;
 	private boolean isServing = false;
 	static HashMap<String, ArrayList<String>> storage = new HashMap<String, ArrayList<String>>();
@@ -64,7 +65,7 @@ public class ClientHandler implements Runnable {
 					System.out.println("\nServer Listening to Client: " + clientR.getClientSimulationIp() + ":" + clientR.gettClientSocket());
 				}
 
-				System.out.println("Client Name: " + clientR.gettClienName());
+				System.out.println("\nClient Name: " + clientR.gettClienName());
 				System.out.println("Client Request: " + clientR.getRequest());
 				System.out.println("Order #: " + clientR.getOrderNumber());
 				System.out.println("Client IP: " + clientR.getClientSimulationIp());
@@ -74,6 +75,8 @@ public class ClientHandler implements Runnable {
 				Key = clientR.gettClienName();
 				data = clientR.getRequest() + " " + clientR.getOrderNumber() + " " + clientR.getClientSimulationIp() + " " + clientR.gettClientSocket();
 				ArrayList<String> b = new ArrayList<String>();
+
+				// REGISTER request
 				if (clientR.getRequest().equals("REGISTER")) {
 					// TODO create condition to check registration success
 					if (storage.containsKey(Key) == false) {
@@ -94,10 +97,11 @@ public class ClientHandler implements Runnable {
 						// if from client, send to other server
 						if (clientR.from().equals("CLIENT")) {
 							clientR.setFrom("SERVER");
-							clientR.setServerSocket(serverBSocket);
+							clientR.setServerSocket(serverSocket);
 							ByteArrayOutputStream bStream = new ByteArrayOutputStream();
 							ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
 							sendUDP(bStream, clientR, ds, ip);
+							clientR.setServerSocket(serverBSocket);
 							sendUDPToServer(bStream2, clientR, ds, ip);
 						}
 					} else if (storage.containsKey(Key) == true) {
@@ -109,10 +113,11 @@ public class ClientHandler implements Runnable {
 						// sends to other server
 						if (clientR.from().equals("CLIENT")) {
 							clientR.setFrom("SERVER");
-							clientR.setServerSocket(serverBSocket);
+							clientR.setServerSocket(serverSocket);
 							ByteArrayOutputStream bStream = new ByteArrayOutputStream();
 							ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
 							sendUDP(bStream, clientR, ds, ip);
+							clientR.setServerSocket(serverBSocket);
 							sendUDPToServer(bStream2, clientR, ds, ip);
 						}
 					}
@@ -127,10 +132,11 @@ public class ClientHandler implements Runnable {
 						// sends to other server
 						if (clientR.from().equals("CLIENT")) {
 							clientR.setFrom("SERVER");
-							clientR.setServerSocket(serverBSocket);
-							ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+							clientR.setServerSocket(serverSocket);
+							ByteArrayOutputStream bStream = new ByteArrayOutputStream();
 							ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
 							sendUDP(bStream, clientR, ds, ip);
+							clientR.setServerSocket(serverBSocket);
 							sendUDPToServer(bStream2, clientR, ds, ip);
 						}
 					} else {
@@ -141,10 +147,11 @@ public class ClientHandler implements Runnable {
 						// sends to other server
 						if (clientR.from().equals("CLIENT")) {
 							clientR.setFrom("SERVER");
-							clientR.setServerSocket(serverBSocket);
-							ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+							clientR.setServerSocket(serverSocket);
+							ByteArrayOutputStream bStream = new ByteArrayOutputStream();
 							ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
 							sendUDP(bStream, clientR, ds, ip);
+							clientR.setServerSocket(serverBSocket);
 							sendUDPToServer(bStream2, clientR, ds, ip);
 						}
 					}
@@ -199,7 +206,6 @@ public class ClientHandler implements Runnable {
 
 									clientR.setClientStatus("SUBJECTS-UPDATED"); //set status as de-register
 									clientR.setSubjects(clientR.getSubjects());
-									System.out.println("Subjects Storage: " + storageSubjects);
 
 									for (String clientRSubject : clientRSubjects) {
 										ArrayList<String> m = new ArrayList<String>();
@@ -215,9 +221,16 @@ public class ClientHandler implements Runnable {
 							ifFromServer:
 							{
 								if (clientR.from().equals("SERVER")) {
+									ArrayList<String> clientRSubjects = clientR.getSubjects();
+
 									if (clientR.getClientStatus().equals("SUBJECTS-UPDATED")) {
 										storageSubjects.put(Key, clientR.getSubjects());
-										System.out.println("Subjects Storage: " + storageSubjects);
+
+										for (String clientRSubject : clientRSubjects) {
+											ArrayList<String> m = new ArrayList<String>();
+											publications.put(clientRSubject, m);
+											m = null;
+										}
 										break ifFromServer;
 									}
 								}
@@ -267,7 +280,6 @@ public class ClientHandler implements Runnable {
 
 									clientR.setClientStatus("SUBJECTS-UPDATED"); //set status as de-register
 									clientR.setSubjects(subjectsInStorage);
-									System.out.println("Subjects Storage: " + storageSubjects);
 
 									for(int i=0; i < subjectsInStorage.size(); i++) {
 										ArrayList<String> m = new ArrayList<String>();
@@ -290,11 +302,15 @@ public class ClientHandler implements Runnable {
 					if (clientR.from().equals("CLIENT")) {
 						clientR.setFrom("SERVER");
 						clientR.setServerSocket(serverBSocket);
+						System.out.println("Subjects Storage: " + storageSubjects);
 						ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
 						ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
 						sendUDP(bStream, clientR, ds, ip);
 						sendUDPToServer(bStream2, clientR, ds, ip);
 						clientR.setSubjects(null);
+					}
+					else if (clientR.from().equals("SERVER")) {
+						System.out.println("Subjects Storage: " + storageSubjects);
 					}
 				} // end of SUBJECTS request
 
@@ -314,7 +330,7 @@ public class ClientHandler implements Runnable {
 							System.out.println("Publication Accepted: "+ publications);
 
 							// check all users who registered for this subject
-							int co=0;
+							int co = 0;
 							for (Map.Entry<String, ArrayList<String>> clientInfo : storage.entrySet()) {
 								ArrayList<String> currentList = clientInfo.getValue();
 								String n = clientInfo.getKey();
@@ -340,15 +356,14 @@ public class ClientHandler implements Runnable {
 										client.setClientStatus("MESSAGE");
 
 										// sends to other server
-											clientR.setFrom("SERVER");
-											clientR.setServerSocket(serverBSocket);
 											ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
 											ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
-											sendUDP(bStream, client, ds, ip);
 											client.setServerSocket(serverBSocket);
 											client.setFrom("SERVER");
+											client.setClientSimulationIp(clientR.getClientSimulationIp());
 											sendUDPToServer(bStream2, client, ds, ip);
-										//sendUDP
+											client.setSubject(clientR.getsubject());
+											sendUDP(bStream, client, ds, ip);
 									} // end of inner for loop
 								} // end of outer for loop
 							} // end of outer outer for loop
