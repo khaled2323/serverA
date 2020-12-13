@@ -139,10 +139,13 @@ public class ClientHandler implements Runnable {
 							clientR.setServerSocket(serverBSocket);
 							sendUDPToServer(bStream2, clientR, ds, ip);
 						}
-					} else {
+					}
+					// user name doesn't exist
+					else if (storage.containsKey(Key) == false){
 						// nothing happens just send back the class info
-						clientR.setClientStatus(null);
-						System.out.println("De-Registration rejected, User was not registered at this moment");
+						clientR.setClientStatus("DE-REGISTER-DENIED");
+						clientR.setReason("De-Registration rejected, User was not registered at this moment");
+						System.out.println(clientR.getReason());
 
 						// sends to other server
 						if (clientR.from().equals("CLIENT")) {
@@ -168,19 +171,23 @@ public class ClientHandler implements Runnable {
 						clientR.setClientStatus("UPDATE-CONFIRMED"); //set status as de-register
 						System.out.println("   STORAGE CONTENT   ");
 						System.out.println(storage);
-
-						// sends to other server
-						if (clientR.from().equals("CLIENT")) {
-							clientR.setFrom("SERVER");
-							clientR.setServerSocket(serverBSocket);
-							ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
-							ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
-							sendUDP(bStream, clientR, ds, ip);
-							sendUDPToServer(bStream2, clientR, ds, ip);
-						}
-					} else {
-						System.out.println("Update denied: Name does not exist");
+					}
+					// user name doesn't exist
+					else if (storage.containsKey(Key) == false){
+						// nothing happens just send back the class info
 						clientR.setClientStatus("UPDATE-DENIED");
+						clientR.setReason("Name does not exist");
+						System.out.println(clientR.getReason());
+					}
+
+					// sends to other server
+					if (clientR.from().equals("CLIENT")) {
+						clientR.setFrom("SERVER");
+						clientR.setServerSocket(serverBSocket);
+						ByteArrayOutputStream bStream = new ByteArrayOutputStream(); //sendback class info to user
+						ByteArrayOutputStream bStream2 = new ByteArrayOutputStream();
+						sendUDP(bStream, clientR, ds, ip);
+						sendUDPToServer(bStream2, clientR, ds, ip);
 					}
 				} // end of request UPDATE
 
